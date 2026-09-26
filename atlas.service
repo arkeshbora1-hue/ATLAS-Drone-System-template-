@@ -1,0 +1,20 @@
+[Unit]
+Description=ATLAS onboard mission software
+After=network.target pigpiod.service
+Requires=pigpiod.service
+
+[Service]
+Type=notify
+User=@USER@
+WorkingDirectory=@ATLAS_DIR@
+# mission file is swapped per sortie; nothing arms until the pilot's MISSION-GO switch is high
+ExecStart=@ATLAS_DIR@/.venv/bin/python -m atlas run --mission @ATLAS_DIR@/missions/current.yaml
+WatchdogSec=5
+Restart=on-failure
+RestartSec=2
+# real-time-ish priority for the control loop; keep perception from starving it
+Nice=-5
+CPUSchedulingPolicy=other
+
+[Install]
+WantedBy=multi-user.target

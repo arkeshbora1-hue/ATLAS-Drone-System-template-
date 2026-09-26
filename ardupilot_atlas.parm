@@ -1,0 +1,47 @@
+# ArduCopter 4.5+ parameters for ATLAS on a SpeedyBee F405 (V3/V4 ArduPilot firmware).
+# Load with Mission Planner / MAVProxy ("param load"), then REBOOT the FC.
+# SERIAL port numbers are board specific: check the SpeedyBee F405 page on
+# ardupilot.org for which SERIALn is the UART you soldered the Pi to.
+
+# --- companion computer link (Pi UART <-> FC UART) ---
+SERIAL1_PROTOCOL 2        # MAVLink2
+SERIAL1_BAUD 921          # 921600
+SERIAL1_OPTIONS 0
+
+# --- GUIDED-mode behaviour ---
+GUID_TIMEOUT 3            # stop if no setpoint for 3 s (companion hang protection)
+WP_YAW_BEHAVIOR 0         # companion controls yaw explicitly
+
+# --- RTL: straight line home at an altitude above every surveyed obstacle ---
+RTL_ALT 4500              # cm; ATLAS obstacle sensing is NOT active in RTL
+RTL_ALT_FINAL 0
+RTL_SPEED 400             # cm/s
+LAND_SPEED 50             # cm/s final descent
+
+# --- geofence (second layer; companion fence is 800 m / 60 m) ---
+FENCE_ENABLE 1
+FENCE_TYPE 3              # altitude + circle
+FENCE_ALT_MAX 65
+FENCE_RADIUS 850
+FENCE_ACTION 1            # RTL
+
+# --- battery failsafe (4S Li-ion/LiPo) ---
+BATT_MONITOR 4            # analog voltage + current
+BATT_LOW_VOLT 14.0
+BATT_CRT_VOLT 13.6
+BATT_FS_LOW_ACT 2         # RTL
+BATT_FS_CRT_ACT 1         # LAND
+
+# --- RC / GCS failsafes stay armed underneath the companion ---
+FS_THR_ENABLE 1           # RC loss -> RTL
+FS_EKF_ACTION 1           # EKF failure -> LAND
+FS_GCS_ENABLE 0           # the Pi is not the GCS; a GCS link is optional
+
+# --- payload release servo on the first free output after the motors ---
+SERVO5_FUNCTION 0         # 0 = controllable by MAV_CMD_DO_SET_SERVO
+SERVO5_MIN 1000
+SERVO5_MAX 2000
+SERVO5_TRIM 1100          # boot position = latch closed
+
+# --- pilot MISSION-GO authorisation switch (read by the Pi, no FC function) ---
+RC7_OPTION 0
