@@ -1,0 +1,116 @@
+# ATLAS onboard configuration
+# Units: metres, seconds, m/s, degrees unless stated otherwise.
+
+vehicle:
+  name: ATLAS-01
+  cruise_speed: 2.5          # transit speed; capped by the 4 m sensor range (speed governor)
+  max_speed: 4.0             # hard cap on any horizontal velocity command
+  climb_speed: 1.5
+  descent_speed: 0.8
+  cruise_alt: 20.0           # transit altitude, relative to home (m)
+  search_alt: 12.0           # altitude for drop-zone search (m)
+  release_alt_agl: 3.0       # height above ground for payload release (m)
+  waypoint_accept_radius: 2.0
+  yaw_rate_max: 60.0         # deg/s
+
+mavlink:
+  # Pi 4 hardware UART (GPIO14/15) -> SpeedyBee F405 UART configured as SERIALx_PROTOCOL=2
+  connection: /dev/serial0
+  baud: 921600
+  source_system: 1
+  source_component: 191      # MAV_COMP_ID_ONBOARD_COMPUTER
+  heartbeat_hz: 1.0
+  stream_hz: 10              # requested telemetry rate for position/attitude
+  link_timeout: 3.0          # s without FC heartbeat -> failsafe
+  auth_rc_channel: 7         # pilot's MISSION-GO switch; nothing arms until it is high
+  auth_pwm: 1700
+
+loop:
+  executive_hz: 10.0
+  sensor_hz: 10.0
+  perception_fps: 15.0
+
+sensors:
+  # Sector layout (bearing relative to body X / nose, +clockwise)
+  ultrasonic:                # HC-SR04, triggered sequentially to avoid crosstalk
+    - {name: us_front, sector: FRONT, trig_gpio: 23, echo_gpio: 24}
+    - {name: us_left,  sector: LEFT,  trig_gpio: 17, echo_gpio: 27}
+    - {name: us_right, sector: RIGHT, trig_gpio: 5,  echo_gpio: 6}
+  tof:                       # VL53L1X on I2C-1, addresses reassigned at boot via XSHUT
+    - {name: tof_front,       sector: FRONT,       xshut_gpio: 16, address: 0x30}
+    - {name: tof_front_left,  sector: FRONT_LEFT,  xshut_gpio: 20, address: 0x31}
+    - {name: tof_front_right, sector: FRONT_RIGHT, xshut_gpio: 21, address: 0x32}
+    - {name: tof_down,        sector: DOWN,        xshut_gpio: 26, address: 0x33}
+  ultrasonic_max_range: 4.0
+  tof_max_range: 4.0
+  min_range: 0.03
+  median_window: 3           # samples per sensor in median filter
+  stale_after: 0.5           # s; sector reading older than this is invalid
+  temperature_c: 30.0        # for speed-of-sound compensation
+
+avoidance:
+  safe_distance: 2.5         # trigger: a forward-sector reading below this replans
+  critical_distance: 1.0     # brake + back off
+  clear_distance: 3.2        # hysteresis: sector considered clear above this
+  corridor_half_width: 1.0   # diagonal returns count only if within this of the flight line
+  detour_lateral: 4.0        # sideways offset of detour waypoint (m)
+  detour_forward: 6.0        # forward distance of re-join waypoint (m)
+  backoff_speed: 0.8
+  climb_step: 3.0            # climb this much when both sides are blocked
+  max_replans: 6             # per leg before giving up -> HOLD then RTL
+  brake_decel: 2.5           # conservative braking deceleration (m/s^2) for the speed governor
+  reaction_time: 0.60        # sample + median-filter lag + exec tick + FC velocity response (s)
+  replan_cooldown: 2.0       # s; ignore safe-distance re-triggers while turning onto a detour
+  blocked_hold_timeout: 10.0
+  no_progress_timeout: 45.0  # s without getting 1 m closer to the waypoint -> RTL
+
+perception:
+  model_path: models/dropzone_mnv2_int8.tflite   # the bundled *_synthetic.tflite is a pipeline smoke test only
+  input_size: 160
+  num_threads: 4
+  conf_threshold: 0.60
+  confirm_frames: 5          # N positive detections...
+  confirm_window: 8          # ...out of the last M frames
+  camera:
+    resolution: [640, 480]
+    hfov_deg: 66.0           # Pi Camera Module 3 (standard)
+    vfov_deg: 41.0
+    mount: nadir             # camera looks straight down
+  stale_after: 0.5
+
+approach:
+  kp: 0.6                    # visual-servo proportional gain (m/s per m of offset)
+  ki: 0.15                   # integral gain: removes steady offset from wind / tracking bias
+  i_limit: 1.0               # anti-windup clamp on the integral term (m/s)
+  approach_timeout: 60.0     # s in APPROACH+DESCEND before giving up on this marker
+  max_speed: 1.5
+  centred_radius: 0.6        # m; considered centred within this
+  centred_frames: 10
+  search_leg: 6.0            # expanding-square leg increment (m)
+  search_max_radius: 30.0
+  lost_target_timeout: 4.0
+  search_timeout: 90.0       # give up and return with the payload after this long
+
+payload:
+  method: fc_servo           # fc_servo (MAV_CMD_DO_SET_SERVO) or gpio
+  servo_channel: 5           # first free FC PWM output after M1-M4 (check your board pinout)
+  pwm_closed: 1100
+  pwm_open: 1900
+  open_time: 1.5
+
+safety:
+  battery_rtl_pct: 30
+  battery_land_pct: 18
+  battery_cells: 4
+  min_cell_voltage: 3.45
+  min_satellites: 8
+  max_hdop: 1.8
+  max_cpu_temp_c: 80
+  geofence:
+    max_alt: 60.0
+    max_radius: 800.0        # from home
+    polygon: []              # optional [[lat, lon], ...]; empty = radius only
+
+logging:
+  directory: logs
+  blackbox_hz: 10
