@@ -1,0 +1,12 @@
+# Demo delivery: home -> WP1 -> approximate drop-zone location.
+# The true marker (sim/worlds/demo.yaml) is ~4.6 m away from these coordinates,
+# so the vehicle must search for and visually centre on it.
+name: demo-delivery
+home: {lat: 12.9716000, lon: 77.5946000}
+cruise_alt: 20.0
+waypoints:
+  - {lat: 12.9721396, lon: 77.5946000}   # 60 m N
+dropzone:
+  lat: 12.9724993                        # ~100 m N
+  lon: 77.5951537                        # ~60 m E
+  search_radius: 20.0
